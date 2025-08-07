@@ -39,7 +39,7 @@ const ChatPage = () => {
   // 상태 관리
   const [messages, setMessages] = useState([
     {
-      previous_response_id: 1,
+      previous_response_id: null,
       response_text: "안녕하세요! 모델을 선택하고 대화를 시작하세요.",
       sender: "bot",
     },
@@ -81,7 +81,8 @@ const ChatPage = () => {
 
     try {
       // 실제 API 호출
-      const api = `http://127.0.0.1:8000/ask?model=${selectedModel}`;
+      const out_ip = "35.223.159.214";
+      const api = `http://${out_ip}:8000/ask?model=${selectedModel}`;
 
       const response = await axios.post(api, {
         user_query: userInput,
@@ -94,7 +95,7 @@ const ChatPage = () => {
       console.log("API 응답 수신:", data);
 
       const botMessage = {
-        previous_response_id: Date.now(),
+        previous_response_id: data.previous_response_id,
         response_text: data.response_text,
         sender: "bot",
       };
@@ -126,7 +127,7 @@ const ChatPage = () => {
     }
 
     const userMessage = {
-      previous_response_id: Date.now(),
+      previous_response_id: previousResponseId,
       response_text: trimmedInput,
       sender: "user",
     };
