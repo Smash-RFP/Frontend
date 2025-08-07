@@ -39,8 +39,8 @@ const ChatPage = () => {
   // 상태 관리
   const [messages, setMessages] = useState([
     {
-      id: 1,
-      text: "안녕하세요! 모델을 선택하고 대화를 시작하세요.",
+      previous_response_id: 1,
+      response_text: "안녕하세요! 모델을 선택하고 대화를 시작하세요.",
       sender: "bot",
     },
   ]);
@@ -80,21 +80,22 @@ const ChatPage = () => {
     setError(null);
 
     try {
-      // --- API 호출 시뮬레이션 시작 (이 부분은 실제 연동 시 실제 코드로 교체) ---
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const data = {
-        response_message: `[${selectedModel} 모델 응답] '${userInput}'라고 하셨네요. 이 메시지는 시뮬레이션된 응답입니다.`,
-        previous_response_id: `id_${Math.random()
-          .toString(36)
-          .substring(2, 9)}`,
-      };
-      // --- API 호출 시뮬레이션 종료 ---
+      // 실제 API 호출
+      const api = `http://127.0.0.1:8000/ask?model=${selectedModel}`;
+
+      const response = await axios.post(api, {
+        user_query: userInput,
+        previous_response_id: previousResponseId,
+        model: selectedModel,
+      });
+
+      const data = response.data;
 
       console.log("API 응답 수신:", data);
 
       const botMessage = {
-        id: Date.now(),
-        text: data.response_message,
+        previous_response_id: Date.now(),
+        response_text: data.response_text,
         sender: "bot",
       };
 
@@ -102,8 +103,8 @@ const ChatPage = () => {
       setPreviousResponseId(data.previous_response_id);
     } catch (e) {
       const errorMessage = {
-        id: Date.now(),
-        text: "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.",
+        previous_response_id: previousResponseId,
+        response_text: "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.",
         sender: "bot",
       };
       setMessages((prevMessages) => [...prevMessages, errorMessage]);
@@ -125,8 +126,8 @@ const ChatPage = () => {
     }
 
     const userMessage = {
-      id: Date.now(),
-      text: trimmedInput,
+      previous_response_id: Date.now(),
+      response_text: trimmedInput,
       sender: "user",
     };
 
@@ -174,7 +175,7 @@ const ChatPage = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
           {messages.map((message) => (
             <div
-              key={message.id}
+              key={message.previous_response_id}
               className={`items-baseline flex gap-2 ${
                 message.sender === "user" ? "justify-end" : "justify-start"
               }`}
@@ -191,7 +192,7 @@ const ChatPage = () => {
                     : "bg-white text-gray-800 rounded-bl-lg"
                 }`}
               >
-                <p className="text-sm">{message.text}</p>
+                <p className="text-sm">{message.response_text}</p>
               </div>
             </div>
           ))}
