@@ -29,17 +29,17 @@ const PaperAirplaneIcon = (props) => (
 const ChatPage = () => {
   // 사용 가능한 모델 목록
   const models = [
-    "gpt-4.1",
     "gpt-4.1-nano",
+    "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-o4",
+    "gpt-4o",
     "Qwen2.5",
   ];
 
   // 상태 관리
   const [messages, setMessages] = useState([
     {
-      previous_response_id: null,
+      id: Date.now() + Math.random(),
       response_text: "안녕하세요! 모델을 선택하고 대화를 시작하세요.",
       sender: "bot",
     },
@@ -81,36 +81,72 @@ const ChatPage = () => {
 
     try {
       // 실제 API 호출
-      const out_ip = "35.223.159.214";
+      const out_ip = "0.0.0.0";
       const api = `http://${out_ip}:8000/ask?model=${selectedModel}`;
 
-      const response = await axios.post(api, {
+      // 요청 데이터 구조 개선
+      const requestData = {
         user_query: userInput,
-        previous_response_id: previousResponseId,
         model: selectedModel,
-      });
+      };
+
+      // previous_response_id가 있을 때만 추가
+      if (previousResponseId) {
+        requestData.previous_response_id = previousResponseId;
+      }
+
+      console.log("API 요청 데이터:", requestData);
+
+      const response = await axios.post(api, requestData);
 
       const data = response.data;
 
       console.log("API 응답 수신:", data);
 
+      // 고유한 ID 생성 (timestamp + random)
+      const uniqueId = Date.now() + Math.random();
+
       const botMessage = {
-        previous_response_id: data.previous_response_id,
+        id: uniqueId,
         response_text: data.response_text,
         sender: "bot",
       };
 
       setMessages((prevMessages) => [...prevMessages, botMessage]);
-      setPreviousResponseId(data.previous_response_id);
+
+      // 백엔드에서 받은 previous_response_id 업데이트
+      if (data.previous_response_id) {
+        setPreviousResponseId(data.previous_response_id);
+        console.log(
+          "새로운 previous_response_id 설정:",
+          data.previous_response_id
+        );
+      }
     } catch (e) {
+      console.error("챗봇 응답 요청 실패:", e);
+
+      let errorText = "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.";
+
+      // 더 구체적인 에러 메시지
+      if (e.response?.status === 404) {
+        errorText =
+          "API 서버를 찾을 수 없습니다. 서버가 실행 중인지 확인해주세요.";
+      } else if (e.response?.status === 500) {
+        errorText = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+      } else if (e.code === "ECONNREFUSED") {
+        errorText =
+          "서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.";
+      } else if (e.response?.data?.detail) {
+        errorText = `서버 오류: ${e.response.data.detail}`;
+      }
+
       const errorMessage = {
-        previous_response_id: previousResponseId,
-        response_text: "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.",
+        id: Date.now() + Math.random(),
+        response_text: errorText,
         sender: "bot",
       };
       setMessages((prevMessages) => [...prevMessages, errorMessage]);
       setError(e);
-      console.error("챗봇 응답 요청 실패:", e);
     } finally {
       setLoading(false);
       console.log("요청 처리 완료. loading 상태:", false);
@@ -126,8 +162,11 @@ const ChatPage = () => {
       return;
     }
 
+    // 고유한 ID 생성
+    const uniqueId = Date.now() + Math.random();
+
     const userMessage = {
-      previous_response_id: previousResponseId,
+      id: uniqueId,
       response_text: trimmedInput,
       sender: "user",
     };
@@ -176,7 +215,7 @@ const ChatPage = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
           {messages.map((message) => (
             <div
-              key={message.previous_response_id}
+              key={message.id}
               className={`items-baseline flex gap-2 ${
                 message.sender === "user" ? "justify-end" : "justify-start"
               }`}
