@@ -5,6 +5,9 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+// 마크다운 렌더링을 위한 라이브러리를 가져옵니다.
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // 아이콘 SVG 컴포넌트
 const PaperAirplaneIcon = (props) => (
@@ -24,8 +27,6 @@ const PaperAirplaneIcon = (props) => (
   </svg>
 );
 
-// 컴포넌트 이름을 ChatPage로 변경하여 페이지 역할을 명확히 할 수 있습니다. (선택 사항)
-// 이 파일을 app/chat/page.js 와 같이 저장하면 /chat 경로에서 이 페이지가 렌더링됩니다.
 const ChatPage = () => {
   // 사용 가능한 모델 목록
   const models = [
@@ -61,7 +62,6 @@ const ChatPage = () => {
 
   // 로딩 상태가 끝날 때마다 입력창에 포커스를 주기 위한 useEffect
   useEffect(() => {
-    // 로딩이 false일 때 (즉, API 응답이 완료되었을 때) 포커스를 줍니다.
     if (!loading) {
       inputRef.current?.focus();
     }
@@ -81,40 +81,26 @@ const ChatPage = () => {
 
     try {
       // 실제 API 호출
-      const out_ip = "0.0.0.0";
+      const out_ip = "35.223.159.214";
       const api = `http://${out_ip}:8000/ask?model=${selectedModel}`;
-
-      // 요청 데이터 구조 개선
       const requestData = {
         user_query: userInput,
         model: selectedModel,
       };
-
-      // previous_response_id가 있을 때만 추가
       if (previousResponseId) {
         requestData.previous_response_id = previousResponseId;
       }
-
       console.log("API 요청 데이터:", requestData);
-
       const response = await axios.post(api, requestData);
-
       const data = response.data;
-
       console.log("API 응답 수신:", data);
-
-      // 고유한 ID 생성 (timestamp + random)
       const uniqueId = Date.now() + Math.random();
-
       const botMessage = {
         id: uniqueId,
         response_text: data.response_text,
         sender: "bot",
       };
-
       setMessages((prevMessages) => [...prevMessages, botMessage]);
-
-      // 백엔드에서 받은 previous_response_id 업데이트
       if (data.previous_response_id) {
         setPreviousResponseId(data.previous_response_id);
         console.log(
@@ -124,10 +110,7 @@ const ChatPage = () => {
       }
     } catch (e) {
       console.error("챗봇 응답 요청 실패:", e);
-
       let errorText = "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.";
-
-      // 더 구체적인 에러 메시지
       if (e.response?.status === 404) {
         errorText =
           "API 서버를 찾을 수 없습니다. 서버가 실행 중인지 확인해주세요.";
@@ -139,7 +122,6 @@ const ChatPage = () => {
       } else if (e.response?.data?.detail) {
         errorText = `서버 오류: ${e.response.data.detail}`;
       }
-
       const errorMessage = {
         id: Date.now() + Math.random(),
         response_text: errorText,
@@ -157,30 +139,42 @@ const ChatPage = () => {
   const handleSendMessage = (e) => {
     e.preventDefault();
     const trimmedInput = inputValue.trim();
-
     if (!trimmedInput || loading) {
       return;
     }
-
-    // 고유한 ID 생성
     const uniqueId = Date.now() + Math.random();
-
     const userMessage = {
       id: uniqueId,
       response_text: trimmedInput,
       sender: "user",
     };
-
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInputValue("");
     setLoading(true);
-
     fetchBotResponse(trimmedInput);
   };
 
+  // 렌더링 될 마크다운 테이블에 Tailwind CSS 스타일을 적용하기 위한 컴포넌트 객체
+  const markdownComponents = {
+    table: ({ node, ...props }) => (
+      <table
+        className="w-full border-collapse border border-gray-300 bg-white"
+        {...props}
+      />
+    ),
+    thead: ({ node, ...props }) => <thead className="bg-gray-200" {...props} />,
+    th: ({ node, ...props }) => (
+      <th
+        className="border border-gray-300 px-3 py-2 text-left font-semibold"
+        {...props}
+      />
+    ),
+    td: ({ node, ...props }) => (
+      <td className="border border-gray-300 px-3 py-2" {...props} />
+    ),
+  };
+
   return (
-    // Next.js에서는 <html>, <body> 태그가 자동으로 생성되므로 최상위 div부터 시작합니다.
-    // h-screen을 사용하기 위해 상위 레이아웃(app/layout.js)의 html, body 태그에 h-full 클래스를 추가하는 것이 좋습니다.
     <div className="flex h-screen bg-gray-100">
       <aside className="w-60 flex-shrink-0 bg-gray-800 text-white flex flex-col">
         <div className="p-4 border-b border-gray-700">
@@ -204,7 +198,6 @@ const ChatPage = () => {
           </ul>
         </nav>
       </aside>
-      {/* 오른쪽 메인 채팅 영역 */}
       <div className="flex-1 flex flex-col">
         <header className="bg-white border-b border-gray-200 p-4 shadow-sm">
           <h1 className="text-xl font-semibold text-gray-800 text-center">
@@ -216,7 +209,8 @@ const ChatPage = () => {
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`items-baseline flex gap-2 ${
+              className={`items-start flex gap-2 ${
+                // items-baseline에서 items-start로 변경하여 테이블 정렬 개선
                 message.sender === "user" ? "justify-end" : "justify-start"
               }`}
             >
@@ -226,13 +220,24 @@ const ChatPage = () => {
                 </div>
               )}
               <div
-                className={`rounded-2xl p-3 max-w-sm md:max-w-md shadow-md ${
+                className={`rounded-2xl p-3 max-w-2xl shadow-md ${
+                  // max-w-md에서 max-w-2xl로 늘려 테이블 공간 확보
                   message.sender === "user"
                     ? "bg-blue-500 text-white rounded-br-lg"
                     : "bg-white text-gray-800 rounded-bl-lg"
                 }`}
               >
-                <p className="text-sm">{message.response_text}</p>
+                {/* [수정] <p> 태그를 <ReactMarkdown> 컴포넌트로 교체합니다. */}
+                <div className="prose text-sm max-w-none">
+                  <ReactMarkdown
+                    // remarkPlugins에 remarkGfm을 추가하여 테이블 문법을 활성화합니다.
+                    remarkPlugins={[remarkGfm]}
+                    // 위에서 정의한 스타일 컴포넌트를 적용합니다.
+                    components={markdownComponents}
+                  >
+                    {message.response_text}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           ))}
