@@ -81,8 +81,7 @@ const ChatPage = () => {
 
     try {
       // 실제 API 호출
-      const out_ip = "35.223.159.214";
-      const api = `http://${out_ip}:8000/ask?model=${selectedModel}`;
+      const api = `https://backend-ny7b.onrender.com/ask?model=${selectedModel}`;
       const requestData = {
         user_query: userInput,
         model: selectedModel,
